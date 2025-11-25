@@ -1,1 +1,468 @@
 
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> Balcão de Publicação JW </title>
+    
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: { extend: { colors: { jw: { blue: '#4a6da7', dark: '#333', light: '#f0f6ff' } } } }
+        }
+    </script>
+
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f3f4f6; }
+        @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            body { background: white; color: black; font-size: 11px; }
+            table { width: 100%; border-collapse: collapse; }
+            th, td { border: 1px solid #999; padding: 4px; text-align: left; }
+            input { border: none; background: transparent; }
+            ::-webkit-scrollbar { display: none; }
+        }
+        .print-only { display: none; }
+    </style>
+</head>
+<body>
+
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useRef } = React;
+        
+        // --- ÍCONES ---
+        const Icons = {
+            Box: () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>,
+            List: () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>,
+            History: () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>,
+            Plus: () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>,
+            Edit: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>,
+            Trash: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>,
+            Truck: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>,
+            Save: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>,
+            X: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>,
+            Check: () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"></polyline></svg>,
+            Download: () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>,
+            Upload: () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>,
+            Map: () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon><line x1="8" y1="2" x2="8" y2="18"></line><line x1="16" y1="6" x2="16" y2="22"></line></svg>
+        };
+
+        // --- LISTAS PADRÃO ---
+        const LISTA_FOLHETOS = [
+            "O Que é o Reino de Deus?", "Onde Encontrar as Respostas?", "O Que Você Acha da Bíblia?", "O Que Você Espera do Futuro?",
+            "Qual o Segredo para Ter uma Família Feliz?", "Quem Controla o Mundo?", "O Sofrimento Vai Acabar Algum Dia?",
+            "Será Que os Mortos Podem Voltar a Viver?", "Gostaria de conhecer a verdade?", "Pode Este Mundo Sobreviver?",
+            "Notícias do Reino N.º 37", "Programa de leitura da Bíblia"
+        ];
+
+        const CATALOGO_PADRAO = [
+            { id: 'bib-1', nome: 'Bíblia (Média)', categoria: 'Bíblia', qtd: 0, min: 5 },
+            { id: 'bib-2', nome: 'Bíblia (Pequena)', categoria: 'Bíblia', qtd: 0, min: 3 },
+            { id: 'liv-1', nome: 'Seja Feliz Para Sempre! (Livro)', categoria: 'Livro', qtd: 0, min: 10 },
+            { id: 'card-1', nome: 'Cartão de Visita JW.ORG', categoria: 'Cartão', qtd: 0, min: 100 },
+        ];
+
+        const CATEGORIAS = ['Livro', 'Bíblia', 'Revista', 'Folheto', 'Apostila', 'Brochura', 'Cartão', 'Convite', 'Outros'];
+
+        function App() {
+            const [aba, setAba] = useState('estoque'); 
+            const fileInputRef = useRef(null);
+            
+            // DADOS
+            const [items, setItems] = useState(() => JSON.parse(localStorage.getItem('jw_stock_v25')) || CATALOGO_PADRAO);
+            const [pedidos, setPedidos] = useState(() => JSON.parse(localStorage.getItem('jw_requests_v25')) || []);
+            const [viagem, setViagem] = useState(() => JSON.parse(localStorage.getItem('jw_viagem_v25')) || []);
+            const [historico, setHistorico] = useState(() => JSON.parse(localStorage.getItem('jw_history_v25')) || []);
+
+            useEffect(() => localStorage.setItem('jw_stock_v25', JSON.stringify(items)), [items]);
+            useEffect(() => localStorage.setItem('jw_requests_v25', JSON.stringify(pedidos)), [pedidos]);
+            useEffect(() => localStorage.setItem('jw_viagem_v25', JSON.stringify(viagem)), [viagem]);
+            useEffect(() => localStorage.setItem('jw_history_v25', JSON.stringify(historico)), [historico]);
+
+            // ESTADOS UI
+            const [showModalDados, setShowModalDados] = useState(false);
+            const [showModalViagem, setShowModalViagem] = useState(false);
+            const [showModalHistorico, setShowModalHistorico] = useState(false);
+            const [modoInventario, setModoInventario] = useState(false);
+            const [filtroCategoria, setFiltroCategoria] = useState('Todos');
+            
+            // ESTADOS VARIADOS
+            const [vCategoria, setVCategoria] = useState('Revista');
+            const [vQtd, setVQtd] = useState('');
+            const [vTipoRevista, setVTipoRevista] = useState('A Sentinela');
+            const [vEdicaoRevista, setVEdicaoRevista] = useState('Estudo');
+            const [vDetalheRevista, setVDetalheRevista] = useState('');
+            const [vNomeLivro, setVNomeLivro] = useState(''); 
+            const [vNomeFolheto, setVNomeFolheto] = useState(LISTA_FOLHETOS[0]);
+            const [vTamBiblia, setVTamBiblia] = useState('Média');
+            const [vLetraGrande, setVLetraGrande] = useState(false);
+
+            const [editItemId, setEditItemId] = useState(null);
+            const [editQtdVal, setEditQtdVal] = useState('');
+            const [contagemFisica, setContagemFisica] = useState({});
+            const [editingPedidoId, setEditingPedidoId] = useState(null);
+            const [tempPedidoData, setTempPedidoData] = useState({ solicitante: '', publicacao: '', qtd: 0 });
+            
+            const [pSolicitante, setPSolicitante] = useState('');
+            const [pCategoria, setPCategoria] = useState('Livro');
+            const [pPublicacao, setPPublicacao] = useState(''); 
+            const [pQtd, setPQtd] = useState('');
+            const [pTamBiblia, setPTamBiblia] = useState('Média');
+            const [pLetraGrande, setPLetraGrande] = useState(false);
+            const [pNomeFolheto, setPNomeFolheto] = useState(LISTA_FOLHETOS[0]);
+
+            const [novoNome, setNovoNome] = useState('');
+            const [novaCategoria, setNovaCategoria] = useState('Livro');
+            const [novoMin, setNovoMin] = useState('');
+            const [novoQtd, setNovoQtd] = useState('');
+
+            // --- FUNÇÃO DE LOG (HISTÓRICO) ---
+            const registrarHistorico = (tipo, item, qtd, obs = '') => {
+                const novoLog = {
+                    id: Date.now() + Math.random(),
+                    data: new Date().toLocaleString('pt-BR'),
+                    tipo, // 'Entrada', 'Saída', 'Ajuste'
+                    item,
+                    qtd,
+                    obs
+                };
+                setHistorico(prev => [novoLog, ...prev]);
+            };
+
+            // --- LÓGICA VIAGEM SJL ---
+            const addItemViagem = (e) => {
+                e.preventDefault(); 
+                if(!vQtd) { alert("Digite a quantidade"); return; }
+                let nomeFinal = "";
+                if (vCategoria === 'Revista') {
+                    nomeFinal = vTipoRevista;
+                    if (vTipoRevista === 'A Sentinela') nomeFinal += ` (${vEdicaoRevista})`;
+                    if (vDetalheRevista) nomeFinal += ` - ${vDetalheRevista}`;
+                } else if (vCategoria === 'Bíblia') {
+                    nomeFinal = `Bíblia (${vTamBiblia})`;
+                    if (vTamBiblia === 'Grande' && vLetraGrande) nomeFinal += " [Letra Grande]";
+                } else if (vCategoria === 'Folheto') {
+                    nomeFinal = vNomeFolheto;
+                } else {
+                    if(!vNomeLivro) { alert("Digite o nome"); return; }
+                    nomeFinal = vNomeLivro;
+                    if (vCategoria === 'Livro' && vLetraGrande) nomeFinal += " [Letra Grande]";
+                }
+                setViagem([...viagem, { id: Date.now(), nome: nomeFinal, qtd: parseInt(vQtd), categoria: vCategoria, checked: false }]);
+                setVQtd(''); setVDetalheRevista(''); setVNomeLivro(''); setVLetraGrande(false);
+            };
+            const toggleCheckViagem = (id) => setViagem(viagem.map(v => v.id === id ? { ...v, checked: !v.checked } : v));
+            const removerItemViagem = (id) => setViagem(viagem.filter(v => v.id !== id));
+            
+            const finalizarViagem = () => {
+                if(viagem.filter(v => !v.checked).length > 0) { if(!confirm('Itens não marcados. Continuar?')) return; }
+                let novosItems = [...items];
+                const itensPegos = viagem.filter(v => v.checked);
+                
+                itensPegos.forEach(v => {
+                    const existe = novosItems.find(i => i.nome === v.nome);
+                    if(existe) { existe.qtd += v.qtd; } 
+                    else { novosItems.push({ id: Date.now() + Math.random(), nome: v.nome, categoria: v.categoria, qtd: v.qtd, min: 5 }); }
+                    
+                    // LOG
+                    registrarHistorico('Entrada Betel', v.nome, v.qtd, 'Via SJL');
+                });
+
+                setItems(novosItems); setViagem([]); setShowModalViagem(false); alert(`${itensPegos.length} itens adicionados ao estoque!`);
+            };
+
+            // --- CRUD PEDIDOS ---
+            const addPedido = (e) => {
+                e.preventDefault(); if(!pSolicitante) return;
+                let nomeFinal = '';
+                if (pCategoria === 'Bíblia') nomeFinal = `Bíblia (${pTamBiblia})`;
+                else if (pCategoria === 'Folheto') nomeFinal = pNomeFolheto;
+                else if (pCategoria === 'Livro') { if(!pPublicacao) return; nomeFinal = pPublicacao; if(pLetraGrande) nomeFinal += " [Letra Grande]"; } 
+                else { if(!pPublicacao) return; nomeFinal = pPublicacao; }
+                const novo = { id: Date.now(), solicitante: pSolicitante, publicacao: nomeFinal, categoria: pCategoria, qtd: Number(pQtd)||1, data: new Date().toLocaleDateString(), status: 'pendente' };
+                setPedidos([novo, ...pedidos]); setPSolicitante(''); setPPublicacao(''); setPQtd(''); setPLetraGrande(false);
+            };
+            const startEditPedido = (p) => { setEditingPedidoId(p.id); setTempPedidoData({ solicitante: p.solicitante, publicacao: p.publicacao, qtd: p.qtd }); };
+            const saveEditPedido = (id) => { setPedidos(pedidos.map(p => p.id === id ? { ...p, ...tempPedidoData, qtd: Number(tempPedidoData.qtd) } : p)); setEditingPedidoId(null); };
+            const deletePedido = (id) => { if(confirm('Excluir pedido?')) setPedidos(pedidos.filter(p => p.id !== id)); };
+            
+            const toggleStatusPedido = (p) => {
+                const novoStatus = p.status === 'pendente' ? 'entregue' : 'pendente';
+                if(novoStatus === 'entregue') {
+                    const itemEstoque = items.find(i => i.nome === p.publicacao);
+                    if(itemEstoque && confirm(`Descontar ${p.qtd} do estoque?`)) {
+                        setItems(items.map(i => i.id === itemEstoque.id ? {...i, qtd: Math.max(0, i.qtd - p.qtd)} : i));
+                        // LOG
+                        registrarHistorico('Saída Pedido', p.publicacao, p.qtd, `Solicitante: ${p.solicitante}`);
+                    }
+                }
+                setPedidos(pedidos.map(it => it.id === p.id ? { ...it, status: novoStatus } : it));
+            };
+
+            // --- OUTRAS FUNÇÕES ---
+            const addEstoque = (e) => {
+                e.preventDefault(); if(!novoNome.trim()) { alert("Digite o nome."); return; }
+                const novaQtdNum = Number(novoQtd)||0;
+                const novoItem = { id: Date.now(), nome: novoNome, categoria: novaCategoria, qtd: novaQtdNum, min: Number(novoMin)||5 };
+                setItems([novoItem, ...items]); setNovoNome(''); setNovoMin(''); setNovoQtd(''); setFiltroCategoria('Todos'); alert("Cadastrado!");
+                // LOG
+                if(novaQtdNum > 0) registrarHistorico('Cadastro Inicial', novoNome, novaQtdNum, 'Manual');
+            };
+            const salvarEdicaoEstoque = (id) => { 
+                const novaQtd = parseInt(editQtdVal)||0;
+                const itemAntigo = items.find(i => i.id === id);
+                setItems(items.map(i => i.id === id ? { ...i, qtd: novaQtd } : i)); 
+                setEditItemId(null); 
+                // LOG
+                if(itemAntigo && itemAntigo.qtd !== novaQtd) {
+                    registrarHistorico('Ajuste Manual', itemAntigo.nome, novaQtd, `De ${itemAntigo.qtd} para ${novaQtd}`);
+                }
+            };
+            const iniciarInv = () => { const ini={}; items.forEach(i=>ini[i.id]=i.qtd); setContagemFisica(ini); setModoInventario(true); };
+            const salvarInv = () => { 
+                if(confirm('Atualizar?')) { 
+                    setItems(items.map(i=>({...i, qtd: Number(contagemFisica[i.id])}))); 
+                    setModoInventario(false);
+                    registrarHistorico('Inventário', 'Vários Itens', '-', 'Estoque Atualizado');
+                } 
+            };
+            const exportarDados = () => {
+                const blob = new Blob([JSON.stringify({ items, pedidos, viagem, historico, data: new Date() })], { type: 'application/json' });
+                const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'backup_jw.json'; link.click(); setShowModalDados(false);
+            };
+            const importarDados = (e) => {
+                const file = e.target.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = (ev) => { const json = JSON.parse(ev.target.result); if(json.items && confirm('Restaurar?')) { setItems(json.items); setPedidos(json.pedidos||[]); setViagem(json.viagem||[]); setHistorico(json.historico||[]); setShowModalDados(false); } }; reader.readAsText(file);
+            };
+            const itemsFiltrados = useMemo(() => {
+                let lista = filtroCategoria === 'Todos' ? items : filtroCategoria === 'Baixo Estoque' ? items.filter(i => i.qtd <= i.min) : items.filter(i => i.categoria === filtroCategoria);
+                if(modoInventario && filtroCategoria === 'Baixo Estoque') return items; return lista;
+            }, [items, filtroCategoria, modoInventario]);
+
+            return (
+                <div className="min-h-screen pb-20">
+                    
+                    {/* MODAL HISTÓRICO */}
+                    {showModalHistorico && (
+                        <div className="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center p-4 no-print">
+                            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6 h-[80vh] flex flex-col">
+                                <div className="flex justify-between items-center border-b pb-4 mb-4">
+                                    <h3 className="text-xl font-bold text-jw-blue flex items-center gap-2"><Icons.History /> Histórico de Movimentações</h3>
+                                    <button onClick={()=>setShowModalHistorico(false)}><Icons.X /></button>
+                                </div>
+                                <div className="flex-1 overflow-y-auto">
+                                    <table className="w-full text-sm text-left">
+                                        <thead className="bg-gray-100 text-gray-600"><tr><th className="p-2">Data</th><th className="p-2">Tipo</th><th className="p-2">Item</th><th className="p-2">Qtd</th><th className="p-2">Detalhes</th></tr></thead>
+                                        <tbody className="divide-y">
+                                            {historico.length === 0 && <tr><td colSpan="5" className="p-4 text-center text-gray-400">Nenhum registro ainda.</td></tr>}
+                                            {historico.map(h => (
+                                                <tr key={h.id}>
+                                                    <td className="p-2 text-gray-500 whitespace-nowrap">{h.data}</td>
+                                                    <td className="p-2">
+                                                        <span className={`px-2 py-1 rounded text-xs font-bold ${h.tipo.includes('Entrada') ? 'bg-green-100 text-green-800' : h.tipo.includes('Saída') ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'}`}>{h.tipo}</span>
+                                                    </td>
+                                                    <td className="p-2 font-medium">{h.item}</td>
+                                                    <td className="p-2 font-bold">{h.qtd}</td>
+                                                    <td className="p-2 text-gray-500 text-xs">{h.obs}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div className="pt-4 text-right"><button onClick={()=>setHistorico([])} className="text-red-400 text-xs hover:underline">Limpar Histórico</button></div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* MODAIS DE SUPORTE */}
+                    {showModalViagem && (
+                        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 no-print">
+                            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6 h-[90vh] flex flex-col">
+                                <div className="flex justify-between items-center border-b pb-4 mb-4">
+                                    <h3 className="text-xl font-bold text-jw-blue flex items-center gap-2"><Icons.Truck /> Logística São José da Lapa</h3>
+                                    <button onClick={()=>setShowModalViagem(false)} className="text-gray-500 hover:text-red-500"><Icons.X /></button>
+                                </div>
+                                <div className="flex-1 overflow-y-auto">
+                                    <div className="bg-blue-50 p-4 rounded-lg mb-6">
+                                        <h4 className="font-bold text-sm text-blue-800 mb-3">1. O que buscar?</h4>
+                                        <form onSubmit={addItemViagem} className="flex flex-col gap-4">
+                                            <div className="flex gap-2 overflow-x-auto pb-1">{['Revista', 'Folheto', 'Bíblia', 'Livro', 'Outros'].map(cat => (<button type="button" key={cat} onClick={()=>setVCategoria(cat)} className={`px-3 py-1 text-sm rounded border whitespace-nowrap ${vCategoria===cat?'bg-blue-600 text-white':'bg-white text-gray-600'}`}>{cat}</button>))}</div>
+                                            <div className="bg-white p-3 rounded border">
+                                                {vCategoria === 'Folheto' && (<div className="space-y-3 animate-fade"><label className="block text-xs font-bold text-gray-500 mb-1">Selecione:</label><select className="w-full border p-2 rounded bg-white" value={vNomeFolheto} onChange={e=>setVNomeFolheto(e.target.value)}>{LISTA_FOLHETOS.map(f => <option key={f} value={f}>{f}</option>)}</select></div>)}
+                                                {vCategoria === 'Revista' && (<div className="space-y-3 animate-fade"><div><label className="block text-xs font-bold text-gray-500 mb-1">Qual Revista?</label><select className="w-full border p-2 rounded" value={vTipoRevista} onChange={e=>setVTipoRevista(e.target.value)}><option>A Sentinela</option><option>Despertai</option></select></div>{vTipoRevista === 'A Sentinela' && (<div className="flex gap-4"><label className="flex items-center gap-2"><input type="radio" name="edicao" checked={vEdicaoRevista === 'Estudo'} onChange={()=>setVEdicaoRevista('Estudo')} /> <span className="text-sm">Estudo</span></label><label className="flex items-center gap-2"><input type="radio" name="edicao" checked={vEdicaoRevista === 'Público'} onChange={()=>setVEdicaoRevista('Público')} /> <span className="text-sm">Público</span></label></div>)}<div><label className="block text-xs font-bold text-gray-500 mb-1">Detalhe</label><input className="w-full border p-2 rounded" placeholder="Ex: Maio 2025" value={vDetalheRevista} onChange={e=>setVDetalheRevista(e.target.value)} /></div></div>)}
+                                                {vCategoria === 'Bíblia' && (<div className="space-y-3 animate-fade"><div><label className="block text-xs font-bold text-gray-500 mb-1">Tamanho</label><select className="w-full border p-2 rounded" value={vTamBiblia} onChange={e=>setVTamBiblia(e.target.value)}><option>Pequena</option><option>Média</option><option>Grande</option></select></div>{vTamBiblia === 'Grande' && (<label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={vLetraGrande} onChange={e=>setVLetraGrande(e.target.checked)} /> <span className="text-sm font-bold text-blue-800">Letra Grande?</span></label>)}</div>)}
+                                                {(vCategoria === 'Livro' || vCategoria === 'Outros') && (<div className="space-y-3 animate-fade"><div><label className="block text-xs font-bold text-gray-500 mb-1">Nome</label><input className="w-full border p-2 rounded" placeholder="Nome" value={vNomeLivro} onChange={e=>setVNomeLivro(e.target.value)} /></div>{vCategoria === 'Livro' && (<label className="flex items-center gap-2"><input type="checkbox" checked={vLetraGrande} onChange={e=>setVLetraGrande(e.target.checked)} /> <span className="text-sm">Letra Grande?</span></label>)}</div>)}
+                                            </div>
+                                            <div className="flex gap-2"><input type="number" className="w-24 border p-2 rounded" placeholder="Qtd" value={vQtd} onChange={e=>setVQtd(e.target.value)} /><button className="flex-1 bg-green-600 text-white rounded hover:bg-green-700 flex items-center justify-center gap-2 font-bold"><Icons.Plus /> Adicionar</button></div>
+                                        </form>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <h4 className="font-bold text-sm text-gray-700 mb-2">2. Checklist</h4>
+                                        {viagem.length === 0 && <p className="text-center text-gray-400 py-4">Lista vazia.</p>}
+                                        {viagem.map(v => (
+                                            <div key={v.id} className={`flex items-center justify-between p-3 border rounded ${v.checked ? 'bg-green-50 border-green-200' : 'bg-white'}`}>
+                                                <div className="flex items-center gap-3" onClick={()=>toggleCheckViagem(v.id)}><div className={`w-6 h-6 rounded border flex items-center justify-center cursor-pointer ${v.checked ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300 bg-white'}`}>{v.checked && <Icons.Check />}</div><div><p className={`font-bold ${v.checked ? 'text-green-800 line-through' : 'text-gray-800'}`}>{v.nome}</p><p className="text-xs text-gray-500">{v.categoria} | Qtd: {v.qtd}</p></div></div><button onClick={()=>removerItemViagem(v.id)} className="text-red-400 hover:text-red-600"><Icons.Trash /></button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="border-t pt-4 mt-4"><button onClick={finalizarViagem} className="w-full bg-jw-blue text-white py-3 rounded font-bold text-lg shadow hover:bg-blue-800 flex items-center justify-center gap-2"><Icons.Box /> Confirmar Chegada</button></div>
+                            </div>
+                        </div>
+                    )}
+
+                    {showModalDados && (
+                        <div className="fixed inset-0 bg-black/50 z-[70] flex items-center justify-center p-4 no-print">
+                            <div className="bg-white rounded-lg shadow-xl max-w-sm w-full p-6 text-center">
+                                <h3 className="text-xl font-bold mb-4">Backup</h3>
+                                <div className="space-y-3"><button onClick={exportarDados} className="w-full bg-blue-50 text-blue-700 border border-blue-200 py-3 rounded font-bold flex items-center justify-center gap-2"><Icons.Download /> Baixar</button><div className="relative"><button onClick={()=>fileInputRef.current.click()} className="w-full bg-green-50 text-green-700 border border-green-200 py-3 rounded font-bold flex items-center justify-center gap-2"><Icons.Upload /> Restaurar</button><input type="file" ref={fileInputRef} onChange={importarDados} className="hidden" accept=".json" /></div></div><button onClick={()=>setShowModalDados(false)} className="mt-6 text-gray-400 underline text-sm">Fechar</button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* HEADER */}
+                    <header className="bg-jw-blue text-white shadow-lg sticky top-0 z-50 no-print">
+                        <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
+                            <div className="flex items-center gap-3"><div className="bg-white text-jw-blue font-bold rounded p-1 w-10 h-10 flex items-center justify-center">JW</div><h1 className="font-bold hidden md:block">Publicações</h1></div>
+                            <div className="flex bg-blue-800/50 rounded-lg p-1">
+                                <button onClick={() => setAba('estoque')} className={`px-4 py-1.5 rounded text-sm font-bold flex items-center gap-2 ${aba === 'estoque' ? 'bg-white text-jw-blue shadow' : 'text-blue-100 hover:text-white'}`}><Icons.Box /> Estoque</button>
+                                <button onClick={() => setAba('pedidos')} className={`px-4 py-1.5 rounded text-sm font-bold flex items-center gap-2 ${aba === 'pedidos' ? 'bg-white text-jw-blue shadow' : 'text-blue-100 hover:text-white'}`}><Icons.List /> Pedidos</button>
+                            </div>
+                            <div className="flex gap-2">
+                                <button onClick={() => setShowModalHistorico(true)} className="bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded font-bold text-sm flex items-center gap-2 shadow"><Icons.History /></button>
+                                <button onClick={() => setShowModalViagem(true)} className="bg-orange-500 hover:bg-orange-600 px-3 py-2 rounded font-bold text-sm flex items-center gap-2 shadow"><Icons.Map /> <span className="hidden md:inline">SJL</span></button>
+                                <button onClick={() => setShowModalDados(true)} className="bg-blue-800 hover:bg-blue-900 px-3 py-2 rounded font-bold text-sm flex items-center gap-2 shadow"><Icons.List /> <span className="hidden md:inline">Dados</span></button>
+                            </div>
+                        </div>
+                    </header>
+
+                    <main className="max-w-5xl mx-auto px-4 py-6">
+                        
+                        {/* PDF HEADER */}
+                        <div className="print-only p-8 text-center border-b mb-4">
+                            <h1 className="text-2xl font-bold">Inventário de Publicações</h1>
+                        </div>
+
+                        {/* --- ABA ESTOQUE --- */}
+                        {aba === 'estoque' && (
+                            <div>
+                                {!modoInventario && (
+                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6 no-print">
+                                        <div className="bg-white p-4 rounded shadow-sm border"><p className="text-xs uppercase font-bold text-gray-500">Total</p><p className="text-2xl font-bold">{items.reduce((acc,c)=>acc+c.qtd,0)}</p></div>
+                                        <div className="bg-white p-4 rounded shadow-sm border"><p className="text-xs uppercase font-bold text-gray-500">Baixos</p><p className="text-2xl font-bold text-red-600">{items.filter(i=>i.qtd<=i.min).length}</p></div>
+                                        <div className="bg-white p-4 rounded shadow-sm border flex items-center justify-center"><button onClick={iniciarInv} className="bg-blue-50 text-jw-blue font-bold rounded px-4 py-2 w-full text-sm border border-blue-200">Fazer Inventário</button></div>
+                                    </div>
+                                )}
+                                {modoInventario && (
+                                    <div className="bg-yellow-100 border-l-4 border-yellow-500 p-4 mb-6 rounded shadow-sm sticky top-16 z-40 flex justify-between items-center no-print">
+                                        <span className="font-bold text-yellow-900">⚠️ Modo Inventário</span>
+                                        <div className="flex gap-2"><button onClick={()=>window.print()} className="bg-white border px-3 py-1 rounded text-sm font-bold">PDF</button><button onClick={()=>setModoInventario(false)} className="bg-white border px-3 py-1 rounded text-sm">Cancelar</button><button onClick={salvarInv} className="bg-green-600 text-white px-3 py-1 rounded text-sm font-bold">Salvar</button></div>
+                                    </div>
+                                )}
+                                <div className="flex gap-2 overflow-x-auto pb-2 w-full mb-4 no-print">
+                                    <button onClick={() => setFiltroCategoria('Todos')} className={`px-4 py-1 rounded-full text-sm whitespace-nowrap border ${filtroCategoria === 'Todos' ? 'bg-jw-blue text-white' : 'bg-white'}`}>Todos</button>
+                                    <button onClick={() => setFiltroCategoria('Baixo Estoque')} className={`px-4 py-1 rounded-full text-sm whitespace-nowrap border ${filtroCategoria === 'Baixo Estoque' ? 'bg-red-500 text-white' : 'bg-white text-red-500'}`}>Baixos ⚠️</button>
+                                    {CATEGORIAS.slice(0,6).map(cat => <button key={cat} onClick={() => setFiltroCategoria(cat)} className={`px-4 py-1 rounded-full text-sm whitespace-nowrap border ${filtroCategoria === cat ? 'bg-jw-blue text-white' : 'bg-white'}`}>{cat}</button>)}
+                                </div>
+                                {!modoInventario && (
+                                    <details className="mb-4 relative group w-full md:w-auto no-print">
+                                        <summary className="bg-white border px-4 py-2 rounded cursor-pointer text-sm font-bold flex items-center gap-2 shadow-sm text-jw-blue justify-center"><Icons.Plus /> Cadastro Manual</summary>
+                                        <div className="mt-2 w-full bg-white rounded shadow-sm border p-4">
+                                            <form onSubmit={addEstoque} className="flex flex-col md:flex-row gap-3">
+                                                <select className="border p-2 rounded bg-gray-50 text-sm" value={novaCategoria} onChange={e => setNovaCategoria(e.target.value)}>{CATEGORIAS.map(cat => <option key={cat}>{cat}</option>)}</select>
+                                                <input className="border p-2 rounded text-sm flex-1" placeholder="Nome" value={novoNome} onChange={e => setNovoNome(e.target.value)} />
+                                                <div className="flex gap-2"><input type="number" className="border p-2 rounded w-20 text-sm" placeholder="Qtd Ini" value={novoQtd} onChange={e => setNovoQtd(e.target.value)} /><input type="number" className="border p-2 rounded w-20 text-sm" placeholder="Min" value={novoMin} onChange={e => setNovoMin(e.target.value)} /><button type="submit" className="bg-jw-blue text-white py-2 px-4 rounded text-sm font-bold">Salvar</button></div>
+                                            </form>
+                                        </div>
+                                    </details>
+                                )}
+                                <div className="bg-white rounded shadow-sm border overflow-hidden">
+                                    <table className="w-full text-left">
+                                        <thead className="bg-gray-50 text-gray-500 text-xs uppercase font-bold"><tr><th className="p-4">Publicação</th><th className="p-4 text-center">Categ.</th><th className="p-4 text-center w-24">{modoInventario ? 'Sist.' : 'Qtd'}</th>{modoInventario && <th className="p-4 text-center w-24 bg-blue-50">Físico</th>}{modoInventario && <th className="p-4 text-center w-20">Dif.</th>}{!modoInventario && <th className="p-4 text-right no-print">Ações</th>}</tr></thead>
+                                        <tbody className="divide-y divide-gray-100">
+                                            {itemsFiltrados.map(item => {
+                                                const isLow = item.qtd <= item.min;
+                                                const fisico = contagemFisica[item.id] !== undefined ? contagemFisica[item.id] : item.qtd;
+                                                const diff = fisico - item.qtd;
+                                                return (
+                                                    <tr key={item.id} className="hover:bg-gray-50">
+                                                        <td className="p-4"><div className="font-bold text-gray-700">{item.nome}</div>{isLow && !modoInventario && <div className="text-xs text-red-500 font-bold mt-1 no-print">⚠️ Repor</div>}</td>
+                                                        <td className="p-4 text-center"><span className="bg-gray-100 px-2 py-1 rounded text-xs text-gray-600">{item.categoria}</span></td>
+                                                        <td className="p-4 text-center">{editItemId === item.id ? (<div className="flex gap-1"><input type="number" className="w-16 border rounded text-center" value={editQtdVal} onChange={e => setEditQtdVal(e.target.value)} autoFocus /><button onClick={() => salvarEdicaoEstoque(item.id)} className="bg-green-500 text-white rounded px-1"><Icons.Check /></button></div>) : <span className={`font-bold text-lg ${isLow ? 'text-red-600' : 'text-gray-700'}`}>{item.qtd}</span>}</td>
+                                                        {modoInventario && (<><td className="p-4 bg-blue-50 p-0"><input type="number" className="w-full h-full text-center outline-none text-blue-800 font-bold text-lg" value={fisico} onChange={e => setContagemFisica({...contagemFisica, [item.id]: e.target.value})} /></td><td className={`p-4 text-center font-bold ${diff<0?'text-red-600':diff>0?'text-blue-600':'text-gray-300'}`}>{diff>0?`+${diff}`:diff}</td></>)}
+                                                        {!modoInventario && (<td className="p-4 text-right no-print"><div className="flex justify-end gap-2"><button onClick={() => { setEditItemId(item.id); setEditQtdVal(item.qtd); }} className="text-gray-400 hover:text-blue-600"><Icons.Edit /></button><button onClick={() => { if(confirm('Apagar?')) setItems(items.filter(i=>i.id!==item.id)) }} className="text-red-300 hover:text-red-500"><Icons.Trash /></button></div></td>)}
+                                                    </tr>
+                                                )
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div className="print-only mt-12 border-t pt-6 flex justify-between"><div className="flex flex-col items-start gap-2"><p className="text-sm font-bold">Auditor: Lucas Daniel dos Santos</p><div className="mt-4 w-48 border-t border-black">
+                                    
+                                </div><p className="text-xs text-gray-500"></p></div></div>                                <p>Data: {new Date().toLocaleDateString()}</p>
+
+                            </div>
+                        )}
+
+                        {/* ABA PEDIDOS (CRUD) */}
+                        {aba === 'pedidos' && (
+                            <div>
+                                <div className="bg-white p-5 rounded-lg shadow-sm border border-l-4 border-l-orange-400 mb-6 no-print">
+                                    <h3 className="font-bold text-gray-700 mb-4">Novo Pedido</h3>
+                                    <form onSubmit={addPedido} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="md:col-span-2"><input className="border p-2 rounded w-full" placeholder="Nome do Irmão(ã)" value={pSolicitante} onChange={e=>setPSolicitante(e.target.value)} /></div>
+                                        <div className="md:col-span-2 flex gap-2"><select className="border p-2 rounded bg-gray-50 w-1/3" value={pCategoria} onChange={e=>setPCategoria(e.target.value)}>{CATEGORIAS.map(c=><option key={c}>{c}</option>)}</select><input type="number" className="border p-2 rounded w-24" placeholder="Qtd" value={pQtd} onChange={e=>setPQtd(e.target.value)} /></div>
+                                        {pCategoria === 'Folheto' && (<div className="md:col-span-2 bg-blue-50 p-3 rounded border border-blue-100 animate-fade"><label className="text-xs font-bold text-blue-800 uppercase">Selecione:</label><select className="w-full border p-2 rounded mt-1 bg-white" value={pNomeFolheto} onChange={e=>setPNomeFolheto(e.target.value)}>{LISTA_FOLHETOS.map(f => <option key={f} value={f}>{f}</option>)}</select></div>)}
+                                        {pCategoria === 'Bíblia' && (<div className="md:col-span-2 bg-blue-50 p-3 rounded border border-blue-100 flex gap-4 items-center animate-fade"><span className="text-xs font-bold text-blue-800 uppercase">Tamanho:</span>{['Pequena', 'Média', 'Grande'].map(tam => (<label key={tam} className="flex items-center gap-1 cursor-pointer text-sm"><input type="radio" name="tam" value={tam} checked={pTamBiblia===tam} onChange={e=>setPTamBiblia(e.target.value)}/>{tam}</label>))}</div>)}
+                                        {pCategoria !== 'Bíblia' && pCategoria !== 'Folheto' && (<div className="md:col-span-2 space-y-2 animate-fade"><input className="border p-2 rounded w-full" placeholder={`Nome do ${pCategoria}`} value={pPublicacao} onChange={e=>setPPublicacao(e.target.value)} />{pCategoria === 'Livro' && (<label className="flex items-center gap-2 cursor-pointer bg-gray-50 p-2 rounded w-max"><input type="checkbox" checked={pLetraGrande} onChange={e=>setPLetraGrande(e.target.checked)}/><span className="text-sm">Edição de Letra Grande?</span></label>)}</div>)}
+                                        <button className="md:col-span-2 bg-orange-500 text-white font-bold py-2 rounded hover:bg-orange-600 mt-2">Salvar Pedido</button>
+                                    </form>
+                                </div>
+                                
+                                <div className="space-y-3">
+                                    {pedidos.sort((a,b)=>a.status==='entregue'?1:-1).map(p => {
+                                        const isEditing = editingPedidoId === p.id;
+                                        return (
+                                            <div key={p.id} className={`bg-white border rounded p-4 ${p.status==='entregue'?'opacity-60 bg-gray-50 no-print':'border-l-4 border-l-yellow-400'} ${isEditing ? 'ring-2 ring-blue-400' : ''}`}>
+                                                {isEditing ? (
+                                                    <div className="bg-blue-50 p-4 rounded space-y-2">
+                                                        <div className="flex justify-between"><span className="font-bold text-blue-800 text-sm">Editando...</span><button onClick={() => setEditingPedidoId(null)}><Icons.X/></button></div>
+                                                        <input className="w-full border p-2 rounded bg-white" value={tempPedidoData.solicitante} onChange={e=>setTempPedidoData({...tempPedidoData, solicitante: e.target.value})} placeholder="Irmão" />
+                                                        <div className="flex gap-2"><input className="flex-1 border p-2 rounded bg-white" value={tempPedidoData.publicacao} onChange={e=>setTempPedidoData({...tempPedidoData, publicacao: e.target.value})} placeholder="Publicação" /><input type="number" className="w-20 border p-2 rounded bg-white" value={tempPedidoData.qtd} onChange={e=>setTempPedidoData({...tempPedidoData, qtd: e.target.value})} /></div>
+                                                        <button onClick={()=>saveEditPedido(p.id)} className="w-full bg-green-600 text-white py-2 rounded font-bold flex justify-center items-center gap-2"><Icons.Save/> Salvar</button>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex flex-col md:flex-row justify-between items-center gap-3">
+                                                        <div className="flex-1 w-full">
+                                                            <div className="flex justify-between"><span className="font-bold text-gray-800">{p.solicitante} <span className="text-xs text-gray-500 font-normal ml-2">{p.data}</span></span><span className={`text-xs px-2 py-0.5 rounded font-bold ${p.status==='pendente' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'}`}>{p.status.toUpperCase()}</span></div>
+                                                            <div className="text-gray-600 text-sm mt-1">{p.publicacao} (x{p.qtd})</div>
+                                                        </div>
+                                                        <div className="flex gap-2 no-print">
+                                                            <div className="flex gap-1"><button onClick={()=>startEditPedido(p)} className="p-2 bg-blue-50 text-blue-600 rounded hover:bg-blue-100"><Icons.Edit /></button><button onClick={()=>deletePedido(p.id)} className="p-2 bg-red-50 text-red-500 rounded hover:bg-red-100"><Icons.Trash /></button></div>
+                                                            <button onClick={()=>toggleStatusPedido(p)} className={`px-4 py-1 rounded text-xs font-bold ${p.status==='pendente'?'bg-green-500 text-white hover:bg-green-600':'bg-gray-200 text-gray-600'}`}>{p.status==='pendente' ? 'Entregar' : 'Desfazer'}</button>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            </div>
+                        )}
+                    </main>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
